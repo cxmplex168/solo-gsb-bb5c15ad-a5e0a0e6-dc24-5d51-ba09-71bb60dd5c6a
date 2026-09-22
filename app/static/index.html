@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>配方替代过敏原追踪</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <h1>🥣 配方替代过敏原追踪</h1>
+  <p>食品研发 · 配方版本管理 · 替代链过敏原影响分析</p>
+</header>
+
+<nav class="tabs">
+  <button class="tab-btn active" data-tab="ingredients">原料管理</button>
+  <button class="tab-btn" data-tab="recipes">配方与版本</button>
+  <button class="tab-btn" data-tab="substitutions">替代关系</button>
+  <button class="tab-btn" data-tab="analysis">过敏原分析</button>
+  <button class="tab-btn" data-tab="diff">版本对比</button>
+  <button class="tab-btn" data-tab="io">导入 / 导出</button>
+</nav>
+
+<main>
+  <!-- 原料管理 -->
+  <section id="tab-ingredients" class="tab-panel active">
+    <div class="card">
+      <h2 id="ing-form-title">新增原料</h2>
+      <form id="ing-form" class="form-grid">
+        <input type="hidden" id="ing-id">
+        <label>名称<input id="ing-name" required placeholder="如：全脂牛奶"></label>
+        <label>过敏原（逗号分隔）
+          <input id="ing-allergens" list="allergen-list" placeholder="如：牛奶, 乳糖">
+        </label>
+        <label>备注<input id="ing-notes" placeholder="可选"></label>
+        <div class="form-actions">
+          <button type="submit" class="btn primary">保存</button>
+          <button type="button" class="btn" id="ing-cancel" hidden>取消编辑</button>
+        </div>
+      </form>
+      <datalist id="allergen-list">
+        <option value="麸质"></option><option value="小麦"></option><option value="牛奶"></option>
+        <option value="鸡蛋"></option><option value="花生"></option><option value="坚果"></option>
+        <option value="大豆"></option><option value="鱼"></option><option value="甲壳类"></option>
+        <option value="芝麻"></option><option value="芹菜"></option><option value="芥末"></option>
+        <option value="亚硫酸盐"></option><option value="乳糖"></option><option value="软体动物"></option>
+      </datalist>
+    </div>
+    <div class="card">
+      <h2>原料列表 <span class="muted" id="ing-count"></span></h2>
+      <table class="table" id="ing-table">
+        <thead><tr><th>名称</th><th>直接过敏原</th><th>备注</th><th>操作</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 配方与版本 -->
+  <section id="tab-recipes" class="tab-panel">
+    <div class="card">
+      <h2>新增配方</h2>
+      <form id="recipe-form" class="form-grid">
+        <label>配方名称<input id="recipe-name" required placeholder="如：经典蛋糕"></label>
+        <label>描述<input id="recipe-desc" placeholder="可选"></label>
+        <div class="form-actions"><button type="submit" class="btn primary">创建配方</button></div>
+      </form>
+    </div>
+    <div class="card">
+      <h2>配方列表</h2>
+      <div id="recipe-list"></div>
+    </div>
+    <div class="card" id="version-form-card" hidden>
+      <h2 id="version-form-title">新建版本</h2>
+      <form id="version-form">
+        <input type="hidden" id="version-id">
+        <input type="hidden" id="version-recipe-id">
+        <div class="form-grid">
+          <label>所属配方<input id="version-recipe-name" disabled></label>
+          <label>版本标签<input id="version-label" required placeholder="如：v1.0"></label>
+          <label>备注<input id="version-notes" placeholder="可选"></label>
+        </div>
+        <h3>配方原料</h3>
+        <div id="version-items"></div>
+        <button type="button" class="btn" id="add-item-row">+ 添加原料行</button>
+        <div class="form-actions">
+          <button type="submit" class="btn primary">保存版本</button>
+          <button type="button" class="btn" id="version-cancel">取消</button>
+        </div>
+      </form>
+    </div>
+    <div class="card" id="version-detail-card" hidden>
+      <h2 id="version-detail-title"></h2>
+      <div id="version-detail-body"></div>
+    </div>
+  </section>
+
+  <!-- 替代关系 -->
+  <section id="tab-substitutions" class="tab-panel">
+    <div class="card">
+      <h2>新增替代关系</h2>
+      <p class="muted">有向关系：「原料 A → 替代品 B」表示 A 可被 B 替代。允许形成循环，系统会检测并标记。</p>
+      <form id="sub-form" class="form-grid">
+        <label>被替代原料<select id="sub-from" required></select></label>
+        <label>替代品<select id="sub-to" required></select></label>
+        <label>原因<input id="sub-reason" placeholder="如：成本 / 无乳配方"></label>
+        <div class="form-actions"><button type="submit" class="btn primary">添加</button></div>
+      </form>
+    </div>
+    <div class="card">
+      <h2>替代关系列表 <span class="muted" id="sub-count"></span></h2>
+      <div id="cycle-banner"></div>
+      <table class="table" id="sub-table">
+        <thead><tr><th>被替代原料</th><th></th><th>替代品</th><th>原因</th><th>操作</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 过敏原分析 -->
+  <section id="tab-analysis" class="tab-panel">
+    <div class="card">
+      <h2>替代链过敏原分析</h2>
+      <div class="form-grid">
+        <label>选择配方版本<select id="analysis-version"></select></label>
+        <div class="form-actions"><button class="btn primary" id="run-analysis">开始分析</button></div>
+      </div>
+    </div>
+    <div id="analysis-result"></div>
+  </section>
+
+  <!-- 版本对比 -->
+  <section id="tab-diff" class="tab-panel">
+    <div class="card">
+      <h2>两版配方差异对比</h2>
+      <div class="form-grid">
+        <label>版本 A<select id="diff-a"></select></label>
+        <label>版本 B<select id="diff-b"></select></label>
+        <div class="form-actions"><button class="btn primary" id="run-diff">对比</button></div>
+      </div>
+    </div>
+    <div id="diff-result"></div>
+  </section>
+
+  <!-- 导入 / 导出 -->
+  <section id="tab-io" class="tab-panel">
+    <div class="card">
+      <h2>导出</h2>
+      <p class="muted">将全部原料、替代关系、配方及版本导出为 JSON 文件。</p>
+      <a class="btn primary" href="/api/export" download>下载导出 JSON</a>
+    </div>
+    <div class="card">
+      <h2>导入</h2>
+      <p class="muted">粘贴 JSON 或选择文件。按名称合并：同名原料/配方/版本会被更新，其余新增。</p>
+      <div class="form-actions">
+        <input type="file" id="import-file" accept=".json,application/json">
+        <button class="btn" id="load-sample">填入示例数据</button>
+      </div>
+      <textarea id="import-text" rows="12" placeholder='{"ingredients": [...], "substitutions": [...], "recipes": [...]}'></textarea>
+      <div class="form-actions"><button class="btn primary" id="run-import">执行导入</button></div>
+      <div id="import-result"></div>
+    </div>
+  </section>
+</main>
+
+<div id="toast"></div>
+<script src="/static/app.js"></script>
+</body>
+</html>
